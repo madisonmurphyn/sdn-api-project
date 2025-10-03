@@ -29,16 +29,19 @@ async def ping():
     return {"status": "ok"}
 
 @app.get("/getsdn")
-async def get_sdn(name: str = Query(..., description="Exact name to search for")):
+async def get_sdn(name: str = Query(None, description="Exact name to search for")):
     df = load_sdn_data()
 
     if df.empty:
         raise HTTPException(status_code=500, detail="Unable to load SDN data.")
 
-    # Exact match filter (case-insensitive)
-    matches = df[df["name"].str.strip().str.lower() == name.strip().lower()]
+    if name:
+        matches = df[df["name"].str.strip().str.lower() == name.strip().lower()]
+    else:
+        matches = df
 
     if matches.empty:
-        raise HTTPException(status_code=404, detail=f"No exact matches found for '{name}'.")
+        raise HTTPException(status_code=404, detail=f"No matches found.")
 
     return matches.to_dict(orient="records")
+
