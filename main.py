@@ -24,6 +24,10 @@ def load_sdn_data():
         print(f"Error loading SDN data: {e}")
         return pd.DataFrame()
 
+@app.get("/ping")
+async def ping():
+    return {"status": "ok"}
+
 @app.get("/getsdn")
 async def get_sdn(name: str = Query(..., description="Exact name to search for")):
     df = load_sdn_data()
