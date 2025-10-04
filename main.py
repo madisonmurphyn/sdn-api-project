@@ -30,7 +30,9 @@ async def ping():
 
 @app.get("/getsdn")
 async def get_sdn(
-    name: str = Query(None, description="Exact name to search for"),
+    name: str = Query(None, description="Name to search for"),
+    country: str = Query(None, description="Country code to filter by"),
+    limit: int = Query(100, description="Max number of results"),
     getsdn: str = Query(None, description="Use 'ALL' to return all SDN data"),
 ):
     df = load_sdn_data()
@@ -38,14 +40,24 @@ async def get_sdn(
     if df.empty:
         raise HTTPException(status_code=500, detail="Unable to load SDN data.")
 
+    # Start with all data
     if getsdn and getsdn.strip().upper() == "ALL":
         matches = df
     elif name:
-        matches = df[df["name"].str.strip().str.lower() == name.strip().lower()]
+        # Partial match instead of exact match
+        matches = df[df["name"].str.contains(name, case=False, na=False)]
     else:
-        raise HTTPException(status_code=400, detail="Provide either ?name=<person> or ?getsdn=ALL")
+        matches = df  # Return all if no name specified
+    
+    # Filter by country if provided
+    if country and not matches.empty:
+        matches = matches[matches["countries"].str.contains(country, case=False, na=False)]
+    
+    # Apply limit
+    if not matches.empty:
+        matches = matches.head(limit)
 
     if matches.empty:
-        raise HTTPException(status_code=404, detail="No matches found.")
+        return []  # Return empty array instead of error
 
     return matches.to_dict(orient="records")
