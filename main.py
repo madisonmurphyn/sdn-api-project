@@ -30,34 +30,28 @@ async def ping():
 
 @app.get("/getsdn")
 async def get_sdn(
-    name: str = Query(None, description="Name to search for"),
-    country: str = Query(None, description="Country code to filter by"),
+    name: str = Query(None, description="Name to search for (partial match)"),
+    country: str = Query(None, description="Country code to filter by (e.g., 'ir' for Iran, 'kp' for North Korea)"),
     limit: int = Query(100, description="Max number of results"),
-    getsdn: str = Query(None, description="Use 'ALL' to return all SDN data"),
 ):
     df = load_sdn_data()
 
     if df.empty:
         raise HTTPException(status_code=500, detail="Unable to load SDN data.")
 
-    # Start with all data
-    if getsdn and getsdn.strip().upper() == "ALL":
-        matches = df
-    elif name:
-        # Partial match instead of exact match
-        matches = df[df["name"].str.contains(name, case=False, na=False)]
-    else:
-        matches = df  # Return all if no name specified
+    matches = df
+
+    # Filter by name (partial match, case-insensitive)
+    if name:
+        matches = matches[matches["name"].str.contains(name, case=False, na=False)]
     
-    # Filter by country if provided
-    if country and not matches.empty:
-        matches = matches[matches["countries"].str.contains(country, case=False, na=False)]
+    # Filter by country code (exact match on country codes like 'ir', 'kp', 'ru')
+    if country:
+        country_lower = country.lower()
+        # Check if the country code appears in the countries field
+        matches = matches[matches["countries"].str.lower().str.contains(country_lower, na=False)]
     
     # Apply limit
-    if not matches.empty:
-        matches = matches.head(limit)
-
-    if matches.empty:
-        return []  # Return empty array instead of error
+    matches = matches.head(limit)
 
     return matches.to_dict(orient="records")
