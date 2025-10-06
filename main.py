@@ -31,27 +31,16 @@ async def ping():
 @app.get("/getsdn")
 async def get_sdn(
     name: str = Query(None, description="Name to search for (partial match)"),
-    country: str = Query(None, description="Country code to filter by (e.g., 'ir' for Iran, 'kp' for North Korea)"),
-    limit: int = Query(100, description="Max number of results"),
 ):
     df = load_sdn_data()
 
     if df.empty:
         raise HTTPException(status_code=500, detail="Unable to load SDN data.")
 
-    matches = df
+    if not name:
+        raise HTTPException(status_code=400, detail="Name parameter is required")
 
     # Filter by name (partial match, case-insensitive)
-    if name:
-        matches = matches[matches["name"].str.contains(name, case=False, na=False)]
-    
-    # Filter by country code (exact match on country codes like 'ir', 'kp', 'ru')
-    if country:
-        country_lower = country.lower()
-        # Check if the country code appears in the countries field
-        matches = matches[matches["countries"].str.lower().str.contains(country_lower, na=False)]
-    
-    # Apply limit
-    matches = matches.head(limit)
+    matches = df[df["name"].str.contains(name, case=False, na=False)]
 
     return matches.to_dict(orient="records")
